@@ -79,10 +79,8 @@ class AuditAppBB:
             self.full_results = []
             for i in lb.curselection():
                 sn = lb.get(i)
-                # Citim Excel-ul, detectăm automat header-ul dacă e pe rândul 2
                 df = pd.read_excel(path, sheet_name=sn, header=1)
                 
-                # Căutăm coloanele după nume
                 col_tag = next((c for c in df.columns if any(x in str(c).upper() for x in ["TAG", "SPOOL", "ITEM"])), df.columns[0])
                 col_desc = next((c for c in df.columns if "DESC" in str(c).upper()), df.columns[min(2, len(df.columns)-1)])
                 col_qty = next((c for c in df.columns if "QTY" in str(c).upper()), df.columns[min(3, len(df.columns)-1)])
@@ -92,8 +90,7 @@ class AuditAppBB:
                     if val and val != "nan" and "TOTAL" not in val.upper():
                         desc_val = str(row[col_desc]) if pd.notnull(row[col_desc]) else "-"
                         qty_val = row[col_qty]
-                        try:
-                            target = int(qty_val) if pd.notnull(qty_val) else 1
+                        try: target = int(qty_val) if pd.notnull(qty_val) else 1
                         except: target = 1
                         
                         self.full_results.append({
@@ -159,4 +156,8 @@ class AuditAppBB:
             pd.DataFrame(self.full_results).to_excel(os.path.join(out_dir, f"{base}.xlsx"), index=False)
             messagebox.showinfo("Success", f"Files saved as: {base}")
         except Exception as e: messagebox.showerror("Error", str(e))
-        finally
+        finally:
+            self.run_btn.config(state=tk.NORMAL)
+
+if __name__ == "__main__":
+    root = tk.Tk(); AuditAppBB(root); root.mainloop()
