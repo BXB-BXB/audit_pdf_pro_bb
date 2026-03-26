@@ -1,6 +1,12 @@
 # UTF-8
 VSVersionInfo(
-  ffi=FixedFileInfo(fileflags=0x0, os=0x40004, filetype=0x1, subtype=0x0, date=(0, 0)),
+  ffi=FixedFileInfo(
+    fileflags=0x0,
+    os=0x40004,
+    filetype=0x1,
+    subtype=0x0,
+    date=(0, 0)
+    ),
   kids=[
     StringTable(
       u'040904B0',
