@@ -1,0 +1,17 @@
+# UTF-8
+VSVersionInfo(
+  ffi=FixedFileInfo(fileflags=0x0, os=0x40004, filetype=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringTable(
+      u'040904B0',
+      [StringStruct(u'CompanyName', u'Bogdan Bahrim'),
+      StringStruct(u'FileDescription', u'Audit PDF Pro BB'),
+      StringStruct(u'FileVersion', u'12.0.0'),
+      StringStruct(u'InternalName', u'audit_pdf_pro_bb'),
+      StringStruct(u'LegalCopyright', u'Copyright (C) 2026 Bogdan Bahrim'),
+      StringStruct(u'OriginalFilename', u'audit_pdf_pro_bb.exe'),
+      StringStruct(u'ProductName', u'Audit PDF Pro BB'),
+      StringStruct(u'ProductVersion', u'12.0.0')])
+  ],
+  VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+)
