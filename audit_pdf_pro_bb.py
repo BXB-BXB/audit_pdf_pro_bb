@@ -9,14 +9,14 @@ class AuditAppBB:
     def __init__(self, root):
         self.root = root
         self.root.title("Audit PDF Pro BB - Bogdan Bahrim")
-        self.root.geometry("1350x850")
+        self.root.geometry("1450x850")
         self.root.configure(bg="#f0f2f5")
 
         self.full_results = []
         self.pdf_path = ""
         self.highlight_color = (1, 1, 0) 
 
-        # --- UI PANEL ---
+        # --- PANEL CONTROL ---
         top = tk.Frame(root, bg="#2c3e50", pady=20, padx=20)
         top.pack(fill=tk.X)
         
@@ -37,16 +37,17 @@ class AuditAppBB:
         name_frame = tk.Frame(root, bg="#dee2e6", pady=10)
         name_frame.pack(fill=tk.X)
         tk.Label(name_frame, text="Output Name:", bg="#dee2e6", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=10)
-        self.base_name = tk.Entry(name_frame, width=30); self.base_name.insert(0, "Audit_Report"); self.base_name.pack(side=tk.LEFT)
-        self.suffix_name = tk.Entry(name_frame, width=15); self.suffix_name.insert(0, "_v1"); self.suffix_name.pack(side=tk.LEFT)
+        self.base_name = tk.Entry(name_frame, width=40); self.base_name.insert(0, "Audit_Result"); self.base_name.pack(side=tk.LEFT)
+        self.suffix_name = tk.Entry(name_frame, width=15); self.suffix_name.insert(0, "_REV00"); self.suffix_name.pack(side=tk.LEFT)
 
-        # --- TABLE VIEW ---
+        # --- TABEL ---
         self.tree_frame = tk.Frame(root)
         self.tree_frame.pack(pady=10, fill=tk.BOTH, expand=True, padx=20)
+        
         cols = ("Sheet", "Identifier", "Description", "QTY_BOM", "Found", "Verdict", "Pages")
         self.tree = ttk.Treeview(self.tree_frame, columns=cols, show='headings')
         
-        cw = {"Sheet": 100, "Identifier": 200, "Description": 400, "QTY_BOM": 80, "Found": 80, "Verdict": 100, "Pages": 150}
+        cw = {"Sheet": 100, "Identifier": 180, "Description": 350, "QTY_BOM": 80, "Found": 80, "Verdict": 100, "Pages": 300}
         for c, w in cw.items():
             self.tree.heading(c, text=c)
             self.tree.column(c, width=w, anchor=tk.W if "Desc" in c or "Iden" in c else tk.CENTER)
@@ -73,7 +74,7 @@ class AuditAppBB:
             return
 
         pop = tk.Toplevel(self.root); pop.title("Select Sheets"); pop.grab_set()
-        lb = tk.Listbox(pop, selectmode="multiple", width=50, height=10); [lb.insert(tk.END, s) for s in sheets]; lb.pack(padx=20, pady=10)
+        lb = tk.Listbox(pop, selectmode="multiple", width=60, height=12); [lb.insert(tk.END, s) for s in sheets]; lb.pack(padx=20, pady=10)
 
         def confirm():
             self.full_results = []
@@ -102,16 +103,24 @@ class AuditAppBB:
             pop.destroy()
             messagebox.showinfo("Success", f"Loaded {len(self.full_results)} items.")
 
-        tk.Button(pop, text="Confirm Selection", command=confirm, bg="#27ae60", fg="white").pack(pady=10)
+        tk.Button(pop, text="Confirm & Load Data", command=confirm, bg="#27ae60", fg="white", pady=5, width=20).pack(pady=10)
 
     def load_pdf(self):
-        self.pdf_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
-        if self.pdf_path and self.full_results: self.run_btn.config(state=tk.NORMAL)
+        path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+        if path:
+            self.pdf_path = path
+            # --- AICI PRELUĂM NUMELE DIN RĂDĂCINĂ ---
+            filename_root = os.path.splitext(os.path.basename(path))[0]
+            self.base_name.delete(0, tk.END)
+            self.base_name.insert(0, f"{filename_root}_AUDIT") # Pune numele PDF-ului + sufix
+            
+            if self.full_results: self.run_btn.config(state=tk.NORMAL)
 
     def refresh_table(self):
         for i in self.tree.get_children(): self.tree.delete(i)
         for item in self.full_results:
-            self.tree.insert("", "end", values=(item["sheet"], item["term"], item["desc"], item["target"], item["hits"], item["verdict"], ""))
+            pg_str = ", ".join(map(str, item["pages"]))
+            self.tree.insert("", "end", values=(item["sheet"], item["term"], item["desc"], item["target"], item["hits"], item["verdict"], pg_str))
 
     def start_thread(self):
         self.run_btn.config(state=tk.DISABLED)
@@ -138,7 +147,8 @@ class AuditAppBB:
                     page = doc[p_idx]
                     m = page.search_for(item["term"])
                     if m:
-                        count += len(m); pgs.append(p_idx+1)
+                        count += len(m)
+                        pgs.append(p_idx + 1)
                         for r in m:
                             try:
                                 a = page.add_highlight_annot(r)
@@ -146,18 +156,26 @@ class AuditAppBB:
                             except: continue
                 
                 item["hits"], item["pages"] = count, sorted(list(set(pgs)))
-                item["verdict"] = "✅ MATCH" if count == item["target"] else f"❌ {count}/{item['target']}"
-                self.progress["value"] = i+1; self.root.update_idletasks()
-                if i % 5 == 0: self.refresh_table()
-
+                item["verdict"] = "✅ OK" if count == item["target"] else f"❌ {count}/{item['target']}"
+                
+                self.progress["value"] = i+1
+                if i % 5 == 0: self.root.after(0, self.refresh_table)
+            
             out_dir = os.path.dirname(self.pdf_path)
             base = f"{self.base_name.get()}{self.suffix_name.get()}"
+            
             doc.save(os.path.join(out_dir, f"{base}.pdf"))
-            pd.DataFrame(self.full_results).to_excel(os.path.join(out_dir, f"{base}.xlsx"), index=False)
-            messagebox.showinfo("Success", f"Files saved as: {base}")
-        except Exception as e: messagebox.showerror("Error", str(e))
+            
+            df_export = pd.DataFrame(self.full_results)
+            df_export["pages"] = df_export["pages"].apply(lambda x: ", ".join(map(str, x)))
+            df_export.to_excel(os.path.join(out_dir, f"{base}.xlsx"), index=False)
+            
+            self.root.after(0, lambda: messagebox.showinfo("Success", f"Files saved in the same folder as the PDF!"))
+        except Exception as e: 
+            self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
         finally:
-            self.run_btn.config(state=tk.NORMAL)
+            self.root.after(0, lambda: self.run_btn.config(state=tk.NORMAL))
+            self.root.after(0, self.refresh_table)
 
 if __name__ == "__main__":
     root = tk.Tk(); AuditAppBB(root); root.mainloop()
