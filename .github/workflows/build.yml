@@ -4,19 +4,28 @@ on: [push]
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install pymupdf pandas openpyxl pyinstaller
+
       - name: Create EXE
         run: |
           pyinstaller --noconsole --onefile --version-file="version_info.txt" --name="audit_pdf_pro_bb" audit_pdf_pro_bb.py
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CHECKER_PDF_BB
+          name: CHECKR_PDF_BB
           path: dist/audit_pdf_pro_bb.exe
