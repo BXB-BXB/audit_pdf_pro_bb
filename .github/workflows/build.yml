@@ -18,14 +18,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pymupdf pandas openpyxl pyinstaller
+          pip install pymupdf pandas openpyxl pyinstaller pyinstaller-versionfile
+
+      - name: Generate Metadata
+        run: |
+          create-version-file metadata.yml --outfile version_info.txt
 
       - name: Create EXE
         run: |
-          pyinstaller --noconsole --onefile --name="audit_pdf_pro_bb" audit_pdf_pro_bb.py
+          pyinstaller --noconsole --onefile --version-file="version_info.txt" --name="Audit_Master_Pro_BXB" audit_pdf_pro_bb.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CHECKER_PRO_BB
-          path: dist/audit_pdf_pro_bb.exe
+          name: Audit-Tool
+          path: dist/Audit_Master_Pro_BXB.exe
