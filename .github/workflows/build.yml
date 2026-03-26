@@ -1,0 +1,22 @@
+name: Build Auditor BB
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install pymupdf pandas openpyxl pyinstaller
+      - name: Create EXE
+        run: |
+          pyinstaller --noconsole --onefile --version-file="version_info.txt" --name="audit_pdf_pro_bb" audit_pdf_pro_bb.py
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auditor_BB_EXE
+          path: dist/audit_pdf_pro_bb.exe
