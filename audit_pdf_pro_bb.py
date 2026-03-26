@@ -9,7 +9,7 @@ class AuditAppBB:
     def __init__(self, root):
         self.root = root
         self.root.title("Audit PDF Pro BB - Bogdan Bahrim")
-        self.root.geometry("1300x850")
+        self.root.geometry("1350x850")
         self.root.configure(bg="#f0f2f5")
 
         self.full_results = []
@@ -45,10 +45,15 @@ class AuditAppBB:
         self.tree_frame.pack(pady=10, fill=tk.BOTH, expand=True, padx=20)
         cols = ("Sheet", "Identifier", "Description", "QTY_BOM", "Found", "Verdict", "Pages")
         self.tree = ttk.Treeview(self.tree_frame, columns=cols, show='headings')
-        for c in cols:
-            self.tree.heading(c, text=c); self.tree.column(c, width=100, anchor=tk.CENTER)
-        self.tree.column("Description", width=350, anchor=tk.W)
+        
+        cw = {"Sheet": 100, "Identifier": 200, "Description": 400, "QTY_BOM": 80, "Found": 80, "Verdict": 100, "Pages": 150}
+        for c, w in cw.items():
+            self.tree.heading(c, text=c)
+            self.tree.column(c, width=w, anchor=tk.W if "Desc" in c or "Iden" in c else tk.CENTER)
+        
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vsb = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y); self.tree.configure(yscrollcommand=vsb.set)
         
         self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=1200, mode='determinate')
         self.progress.pack(pady=10)
@@ -74,23 +79,25 @@ class AuditAppBB:
             self.full_results = []
             for i in lb.curselection():
                 sn = lb.get(i)
-                df = pd.read_excel(path, sheet_name=sn)
+                # Citim Excel-ul, detectăm automat header-ul dacă e pe rândul 2
+                df = pd.read_excel(path, sheet_name=sn, header=1)
                 
-                # Logică de detecție coloane
-                col_map = {"tag": 0, "desc": 2, "qty": 3} # Defaults
-                for idx, col in enumerate(df.columns):
-                    c_name = str(col).upper()
-                    if any(x in c_name for x in ["TAG", "SPOOL", "IDENTIFIER"]): col_map["tag"] = idx
-                    if "DESC" in c_name: col_map["desc"] = idx
-                    if "QTY" in c_name: col_map["qty"] = idx
+                # Căutăm coloanele după nume
+                col_tag = next((c for c in df.columns if any(x in str(c).upper() for x in ["TAG", "SPOOL", "ITEM"])), df.columns[0])
+                col_desc = next((c for c in df.columns if "DESC" in str(c).upper()), df.columns[min(2, len(df.columns)-1)])
+                col_qty = next((c for c in df.columns if "QTY" in str(c).upper()), df.columns[min(3, len(df.columns)-1)])
 
                 for _, row in df.iterrows():
-                    val = str(row.iloc[col_map["tag"]]).strip()
+                    val = str(row[col_tag]).strip()
                     if val and val != "nan" and "TOTAL" not in val.upper():
-                        q_val = row.iloc[col_map["qty"]]
+                        desc_val = str(row[col_desc]) if pd.notnull(row[col_desc]) else "-"
+                        qty_val = row[col_qty]
+                        try:
+                            target = int(qty_val) if pd.notnull(qty_val) else 1
+                        except: target = 1
+                        
                         self.full_results.append({
-                            "sheet": sn, "term": val, "desc": str(row.iloc[col_map["desc"]]), 
-                            "target": int(q_val) if pd.notnull(q_val) and str(q_val).isdigit() else 1,
+                            "sheet": sn, "term": val, "desc": desc_val, "target": target, 
                             "hits": 0, "pages": [], "verdict": "Pending"
                         })
             self.refresh_table()
@@ -140,7 +147,8 @@ class AuditAppBB:
                                 a = page.add_highlight_annot(r)
                                 a.set_colors(stroke=self.highlight_color); a.update()
                             except: continue
-                item["hits"], item["pages"] = count, list(set(pgs))
+                
+                item["hits"], item["pages"] = count, sorted(list(set(pgs)))
                 item["verdict"] = "✅ MATCH" if count == item["target"] else f"❌ {count}/{item['target']}"
                 self.progress["value"] = i+1; self.root.update_idletasks()
                 if i % 5 == 0: self.refresh_table()
@@ -151,7 +159,4 @@ class AuditAppBB:
             pd.DataFrame(self.full_results).to_excel(os.path.join(out_dir, f"{base}.xlsx"), index=False)
             messagebox.showinfo("Success", f"Files saved as: {base}")
         except Exception as e: messagebox.showerror("Error", str(e))
-        finally: self.run_btn.config(state=tk.NORMAL)
-
-if __name__ == "__main__":
-    root = tk.Tk(); AuditAppBB(root); root.mainloop()
+        finally
